@@ -1,4 +1,4 @@
-name: Windows build check
+name: Preverjanje sestave za Windows
 
 on:
   push:
@@ -21,22 +21,22 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - name: Получить исходный код
+      - name: Prenesi izvorno kodo
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Установить .NET 10 SDK
+      - name: Pripravi .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Найти MSBuild из Visual Studio 2026
+      - name: Pripravi Visual Studio 2026
         uses: microsoft/setup-msbuild@v2
         with:
           vs-version: '[18.0,19.0)'
 
-      - name: Записать версии инструментов
+      - name: Zabelezi razlicice orodij
         run: |
           New-Item -ItemType Directory -Force build-logs | Out-Null
           dotnet --info | Tee-Object build-logs/dotnet-info.txt
@@ -44,18 +44,18 @@ jobs:
           msbuild -version | Tee-Object build-logs/msbuild-version.txt
           exit $LASTEXITCODE
 
-      - name: Собрать Debug x64
+      - name: Sestavi igro in streznike (Debug x64)
         run: |
           & msbuild sources/talesofpirates.sln /restore /m:2 /p:Configuration=Debug /p:Platform=x64 /nologo /verbosity:minimal "/flp:logfile=build-logs/build.log;verbosity=normal"
           $buildExitCode = $LASTEXITCODE
           if ($buildExitCode -ne 0) {
-            "Сборка завершилась с ошибкой. Подробности в build-logs/build.log." >> $env:GITHUB_STEP_SUMMARY
+            "Sestavljanje ni uspelo. Podrobnosti so v build-logs/build.log." >> $env:GITHUB_STEP_SUMMARY
           } else {
-            "Сборка Debug x64 успешна. Запуск игры и сервера ещё не проверен." >> $env:GITHUB_STEP_SUMMARY
+            "Sestavljanje Debug x64 je uspelo. Zagon igre in streznika se ni preverjen." >> $env:GITHUB_STEP_SUMMARY
           }
           exit $buildExitCode
 
-      - name: Сохранить журнал сборки
+      - name: Shrani dnevnik sestavljanja
         if: always()
         uses: actions/upload-artifact@v4
         with:
