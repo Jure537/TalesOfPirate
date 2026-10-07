@@ -14,11 +14,11 @@ Add-Type -AssemblyName System.Data
 
 function Open-Database([string]$database = 'master') {
     $builder = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
-    $builder.DataSource = $SqlServer
-    $builder.InitialCatalog = $database
-    $builder.IntegratedSecurity = $true
-    $builder.TrustServerCertificate = $true
-    $builder.ConnectTimeout = 10
+    $builder['Data Source'] = $SqlServer
+    $builder['Initial Catalog'] = $database
+    $builder['Integrated Security'] = $true
+    $builder['TrustServerCertificate'] = $true
+    $builder['Connect Timeout'] = 10
     $connection = New-Object System.Data.SqlClient.SqlConnection $builder.ConnectionString
     $connection.Open()
     return $connection
