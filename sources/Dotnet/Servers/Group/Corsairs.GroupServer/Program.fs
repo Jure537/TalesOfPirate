@@ -44,8 +44,10 @@ let main args =
         match builder.Configuration.GetSection("GroupServer")["GrpcPort"] with
         | null | "" -> 15002
         | v -> int v
+    let grpcAddress =
+        builder.Configuration["GrpcAddress"] |> Option.ofObj |> Option.defaultValue "0.0.0.0"
     builder.WebHost.ConfigureKestrel(fun opts ->
-        opts.ListenAnyIP(grpcPort, fun lo -> lo.Protocols <- HttpProtocols.Http2))
+        opts.Listen(System.Net.IPAddress.Parse(grpcAddress), grpcPort, fun lo -> lo.Protocols <- HttpProtocols.Http2))
     |> ignore
 
     let app = builder.Build()
