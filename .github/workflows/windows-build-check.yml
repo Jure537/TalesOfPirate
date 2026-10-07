@@ -1,4 +1,4 @@
-name: Preverjanje sestave za Windows
+name: Sestava in paket Release za Windows
 
 on:
   push:
@@ -44,62 +44,51 @@ jobs:
           msbuild -version | Tee-Object build-logs/msbuild-version.txt
           exit $LASTEXITCODE
 
-      - name: Sestavi igro in streznike (Debug x64)
+      - name: Sestavi igro in streznike (Release x64)
         run: |
-          & msbuild sources/talesofpirates.sln /restore /m:2 /p:Configuration=Debug /p:Platform=x64 /nologo /verbosity:minimal "/flp:logfile=build-logs/build.log;verbosity=normal"
-          $buildExitCode = $LASTEXITCODE
-          if ($buildExitCode -ne 0) {
-            "Sestavljanje ni uspelo. Podrobnosti so v build-logs/build.log." >> $env:GITHUB_STEP_SUMMARY
-          } else {
-            "Sestavljanje Debug x64 je uspelo. Zagon igre in streznika se ni preverjen." >> $env:GITHUB_STEP_SUMMARY
-          }
-          exit $buildExitCode
+          & msbuild sources/talesofpirates.sln /restore /m:2 /p:Configuration=Release /p:Platform=x64 /nologo /verbosity:minimal "/flp:logfile=build-logs/build.log;verbosity=normal"
+          exit $LASTEXITCODE
 
-
-      - name: Preveri ustvarjene programe
+      - name: Preveri zbirki z igralnimi podatki
+        shell: python
         run: |
-          $required = @(
-            'Client/system/Game.exe',
-            'server/GameServer/GameServer.exe',
-            'sources/Dotnet/Servers/Account/Corsairs.AccountServer/bin/Debug/net10.0/Corsairs.AccountServer.dll',
-            'sources/Dotnet/Servers/Gate/Corsairs.GateServer/bin/Debug/net10.0/Corsairs.GateServer.dll',
-            'sources/Dotnet/Servers/Group/Corsairs.GroupServer/bin/Debug/net10.0/Corsairs.GroupServer.dll'
-          )
-          foreach ($path in $required) {
-            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-              throw "Manjka rezultat sestavljanja: $path"
+          import json, sqlite3
+          from pathlib import Path
+          report = {}
+          for name in ("gamedata.sqlite", "render.sqlite"):
+              path = Path("databases") / name
+              with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True) as db:
+                  result = db.execute("PRAGMA integrity_check").fetchall()
+                  if result != [("ok",)]:
+                      raise RuntimeError(f"{name}: {result}")
+                  tables = db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
+                  report[name] = {"integrity": "ok", "tables": [row[0] for row in tables]}
+          Path("build-logs/sqlite-check.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+          print(json.dumps(report, indent=2))
+
+      - name: Zabelezi odvisnosti programov
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vsPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $dumpbin = Get-ChildItem "$vsPath/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $dumpbin) { throw 'Orodje dumpbin ni na voljo.' }
+          foreach ($path in @('Client/system/Game.exe', 'server/GameServer/GameServer.exe')) {
+            $output = & $dumpbin.FullName /DEPENDENTS $path
+            if ($LASTEXITCODE -ne 0) { throw "Pregled odvisnosti ni uspel: $path" }
+            $output | Add-Content build-logs/native-dependencies.txt
+            if ($output -match '(?i)(ucrtbased|vcruntime[0-9_]*d|msvcp[0-9_]*d)\.dll') {
+              throw "Program Release se vedno zahteva knjiznico Debug: $path"
             }
           }
-          @(
-            "Tales of Pirates - diagnosticni programi Debug x64"
-            "Commit: $env:GITHUB_SHA"
-            ""
-            "To ni pripravljen namestitveni paket igre."
-            "Vsebuje sestavljene programe in njihove spremljevalne datoteke."
-            "Podatkovna baza, igralne vsebine in lokalne povezave se niso nastavljene."
-            "Debug programi lahko potrebujejo razvojne izvajalne knjiznice Visual C++."
-            ".NET strezniki potrebujejo .NET 10."
-            "Za zagon brez Visual Studia bo treba pripraviti in preveriti sestavo Release."
-            "Zagon in igranje se nista preverjena."
-          ) | Set-Content -Encoding utf8 BUILD-NOTES.txt
-          Get-FileHash -Algorithm SHA256 $required |
-            Format-Table -AutoSize |
-            Out-String -Width 240 |
-            Set-Content -Encoding utf8 build-logs/program-checksums.txt
 
-      - name: Shrani testne programe za prenos
+      - name: Pripravi celoten testni paket
+        run: ./scripts/package-local-release.ps1
+
+      - name: Shrani paket Release za prenos
         uses: actions/upload-artifact@v4
         with:
-          name: tales-of-pirates-debug-x64
-          path: |
-            BUILD-NOTES.txt
-            Client/system/
-            Client/licenses/
-            server/GameServer/*.exe
-            server/GameServer/*.dll
-            sources/Dotnet/Servers/Account/Corsairs.AccountServer/bin/Debug/net10.0/
-            sources/Dotnet/Servers/Gate/Corsairs.GateServer/bin/Debug/net10.0/
-            sources/Dotnet/Servers/Group/Corsairs.GroupServer/bin/Debug/net10.0/
+          name: tales-of-pirates-release-x64
+          path: release-package/
           if-no-files-found: error
           retention-days: 7
 
@@ -107,7 +96,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build-logs
+          name: windows-release-logs
           path: build-logs/
           if-no-files-found: warn
           retention-days: 7
