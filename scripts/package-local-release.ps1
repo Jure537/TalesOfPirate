@@ -11,6 +11,17 @@ foreach ($folder in @('Client', 'server', 'databases', 'mssql')) {
 Copy-Item -LiteralPath 'LICENSE' -Destination $package
 Copy-Item -LiteralPath 'README.md' -Destination (Join-Path $package 'UPSTREAM-README.md')
 
+
+# Odstrani shranjeno prijavo iz izvornih uporabniskih nastavitev.
+$iniPath = Join-Path $package 'Client/user/system.ini'
+$ini = Get-Content -LiteralPath $iniPath -Raw
+$ini = [regex]::Replace($ini, '(?ms)^\[Login\]\r?\n.*?(?=^\[|\z)', "[Login]`r`nRemember = 0`r`n")
+$ini | Set-Content -LiteralPath $iniPath -Encoding utf8
+foreach ($relative in @('Client/user/username.txt', 'Client/user/checkid.txt')) {
+    $file = Join-Path $package $relative
+    if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file }
+}
+
 foreach ($name in @('Account', 'Gate', 'Group')) {
     $project = "sources/Dotnet/Servers/$name/Corsairs.${name}Server/Corsairs.${name}Server.fsproj"
     $destination = Join-Path $package "server/${name}Server"
