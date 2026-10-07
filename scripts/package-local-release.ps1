@@ -5,7 +5,7 @@ $package = Join-Path $repoRoot 'release-package'
 if (Test-Path $package) { throw 'Mapa release-package ze obstaja; uporabi cisto delovno mapo.' }
 New-Item -ItemType Directory -Path $package | Out-Null
 
-foreach ($folder in @('Client', 'server', 'databases', 'mssql')) {
+foreach ($folder in @('Client', 'server', 'databases', 'mssql', 'local')) {
     Copy-Item -LiteralPath $folder -Destination $package -Recurse
 }
 Copy-Item -LiteralPath 'LICENSE' -Destination $package
@@ -29,6 +29,7 @@ foreach ($name in @('Account', 'Gate', 'Group')) {
     if ($LASTEXITCODE -ne 0) { throw "Objava streznika $name ni uspela." }
     $settingsPath = Join-Path $destination 'appsettings.json'
     $settings = Get-Content -LiteralPath $settingsPath -Raw | ConvertFrom-Json
+    $settings | Add-Member -NotePropertyName GrpcAddress -NotePropertyValue '127.0.0.1' -Force
     # Paket je namenjen lokalnemu igranju.
     if ($name -eq 'Account') { $settings.AccountServer.ListenAddress = '127.0.0.1' }
     if ($name -eq 'Group') { $settings.GroupServer.ListenAddress = '127.0.0.1' }
@@ -43,6 +44,9 @@ if ((Test-Path $emptyDb) -and (Get-Item $emptyDb).Length -eq 0) {
 }
 Get-ChildItem $package -Recurse -File -Filter '*.pdb' | Remove-Item
 Get-ChildItem (Join-Path $package 'databases') -File -Filter '*.bak*' | Remove-Item
+
+& python scripts/localize-package.py $package
+if ($LASTEXITCODE -ne 0) { throw 'Priprava lokalnega seznama streznikov ni uspela.' }
 
 $required = @(
     'Client/system/Game.exe',
@@ -67,7 +71,7 @@ $manifest | ConvertTo-Json | Set-Content (Join-Path $package 'checksums.json') -
     'Paket vsebuje klient, igralne vsebine in strezniske programe.'
     '.NET strezniki imajo vkljuceno izvajalno okolje .NET.'
     'Lokalni SQL Server in ODBC Driver 17 se nista namescena ali nastavljena.'
-    'Namestitev baze in ustvarjanje racuna se nista preverjena.'
+    'Skripte za bazo, racun in zagon: glej local/README.md in datoteke local/*.cmd.'
     'Izvorne SQL skripte v mssql so prilozene za pregled, ne za slepo izvajanje.'
     'Odvisnosti programov so zapisane v build-logs/native-dependencies.txt v locenem dnevniku.'
     'Po potrebi bo treba namestiti uradne izvajalne knjiznice Visual C++ in DirectX.'
