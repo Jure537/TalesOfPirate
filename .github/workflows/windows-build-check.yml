@@ -14,7 +14,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  setup-check:
+    name: Preveri pripravo baze in racuna
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Preveri svezi bazi in zavrnitev prepisovanja
+        shell: powershell
+        run: ./scripts/Test-LocalSetup.ps1
+
   build:
+    needs: setup-check
     runs-on: windows-2025-vs2026
     timeout-minutes: 35
     defaults:
