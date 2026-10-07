@@ -114,67 +114,7 @@ switch ($Action) {
                 $plain = $null; $encoded = $null; $secret.Dispose()
             }
         }
-        if ($PasswordHash -cnotmatch '^[A-F0-9]{64}
-BEGIN TRANSACTION;
-IF EXISTS (SELECT 1 FROM AccountServer.dbo.account_login WITH (UPDLOCK,HOLDLOCK) WHERE name=@name)
-    THROW 51000, 'Racun ze obstaja; gesla in napredka ne spreminjamo.', 1;
-INSERT AccountServer.dbo.account_login (name,password,salt,ban)
-VALUES (@name,@hash,'',0);
-DECLARE @id int = CONVERT(int,SCOPE_IDENTITY());
-IF EXISTS (SELECT 1 FROM GameDB.dbo.account WHERE ato_id=@id OR ato_nome=@name)
-    THROW 51001, 'Obstaja neujemajoc igralni racun. Potreben je pregled.', 1;
-INSERT GameDB.dbo.account (ato_id,ato_nome,jmes,ator_ids)
-VALUES (@id,@name,0,'0');
-COMMIT;
-SELECT @id;
-'@
-            [void]$command.Parameters.Add('@name',[Data.SqlDbType]::VarChar,50)
-            $command.Parameters['@name'].Value = $Username
-            [void]$command.Parameters.Add('@hash',[Data.SqlDbType]::VarChar,255)
-            $command.Parameters['@hash'].Value = $PasswordHash
-            $id = $command.ExecuteScalar()
-            Write-Host "Racun $Username je ustvarjen (ID $id). Lik ustvari v igri."
-        } finally { $connection.Dispose(); $PasswordHash = $null }
-    }
-    'Check' {
-        Assert-Schema
-        $odbc = New-Object Data.Odbc.OdbcConnection "Driver={ODBC Driver 17 for SQL Server};Server=$SqlServer;Database=GameDB;Trusted_Connection=Yes"
-        try { $odbc.Open() } finally { $odbc.Dispose() }
-        Write-Host 'Povezava z bazama, osnovna shema in ODBC 17 delujejo.'
-    }
-    'Start' {
-        if ($SqlServer -ne 'localhost') { throw 'Ta zaganjalnik uporablja privzeto lokalno instanco SQL Server (localhost).' }
-        & $PSCommandPath -Action Check
-        $names = @('Account','Group','Gate')
-        $ports = @(1978,1975,1973)
-        $processNames = @('Corsairs.AccountServer','Corsairs.GroupServer','Corsairs.GateServer','GameServer')
-        if (Get-Process -Name $processNames -ErrorAction SilentlyContinue) { throw 'Streznik ze tece. Najprej preveri njegova okna.' }
-        foreach ($port in @(1978,1975,1973,1971,15000,15001,15002)) {
-            if (Test-Port $port) { throw "Vrata $port so ze zasedena." }
-        }
-        foreach ($name in $names) {
-            if (-not (Test-Path -LiteralPath (Join-Path $root "server/${name}Server/Corsairs.${name}Server.exe"))) { throw "Manjka ${name}Server." }
-        }
-        $gameDir = Join-Path $root 'server/GameServer'
-        if (-not (Test-Path -LiteralPath (Join-Path $gameDir 'GameServer.exe'))) { throw 'Manjka GameServer.exe.' }
-        for ($i=0; $i -lt $names.Count; $i++) {
-            $name = $names[$i]
-            $directory = Join-Path $root "server/${name}Server"
-            $process = Start-Process -FilePath (Join-Path $directory "Corsairs.${name}Server.exe") -WorkingDirectory $directory -PassThru
-            Wait-Port $process $ports[$i]
-        }
-        Wait-Port $process 1971
-        [void](Start-Process -FilePath (Join-Path $gameDir 'GameServer.exe') -ArgumentList 'GameServer00.cfg' -WorkingDirectory $gameDir -PassThru)
-        Write-Host 'Procesi so zagnani. Pocakaj, da GameServer nalozi zemljevide in se poveze z Gate. Nato zazeni igro.'
-        Write-Host 'Odprta vrata se niso dokaz uspesne prijave. Ob napaki preveri konzole; procesov ne zaganjaj ponovno.'
-    }
-    'Client' {
-        if (-not (Test-Port 1973)) { throw 'Lokalni GateServer se ne poslusa na vratih 1973. Najprej zazeni streznike.' }
-        $clientDir = Join-Path $root 'Client'
-        Start-Process -FilePath (Join-Path $clientDir 'system/Game.exe') -ArgumentList 'pKcfT0PcaX' -WorkingDirectory $clientDir
-    }
-}
-) { throw 'Neveljaven BLAKE2s hash gesla.' }
+        if ($PasswordHash -cnotmatch '^[A-F0-9]{64}$') { throw 'Neveljaven BLAKE2s hash gesla.' }
         $connection = Open-Database
         try {
             $command = $connection.CreateCommand()
