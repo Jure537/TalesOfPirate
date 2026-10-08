@@ -94,6 +94,22 @@ jobs:
             }
           }
 
+      - name: Pripravi majhen popravek odjemalca
+        run: |
+          New-Item -ItemType Directory -Force client-hotfix | Out-Null
+          Copy-Item Client/system/Game.exe client-hotfix/Game.exe
+          $hash = (Get-FileHash client-hotfix/Game.exe -Algorithm SHA256).Hash
+          "Game.exe SHA256=$hash`nCommit=${{ github.sha }}" | Set-Content client-hotfix/VERZIJA.txt
+          "Zapri igro. Najprej v prejsnjem testnem paketu uporabi 04-Obnovi.cmd. Shrani kopijo starega Client/system/Game.exe in ga zamenjaj s tem Game.exe. Streznikov in baz ni treba spreminjati. Odpri igro z obicajnim 05-Zazeni-igro.cmd. Preveri Game Settings in like. Ce likov ni, zberi podatke s prejsnjim 03-Zberi-podatke.cmd in poslji ZIP. Ta sestava vsebuje popravek nastavitev besedila, ohranitev graficega stanja po izrisu pisav in omejeno SkinningDiagnostic belezenje." | Set-Content client-hotfix/PREBERI.txt
+
+      - name: Shrani majhen popravek odjemalca
+        uses: actions/upload-artifact@v4
+        with:
+          name: tales-of-pirates-client-hotfix
+          path: client-hotfix/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Pripravi celoten testni paket
         run: ./scripts/package-local-release.ps1
 

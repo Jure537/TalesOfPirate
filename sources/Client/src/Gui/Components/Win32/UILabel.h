@@ -1,4 +1,4 @@
-﻿//----------------------------------------------------------------------
+//----------------------------------------------------------------------
 // :
 // :lh 2004-07-19
 // :2004-10-09
@@ -21,12 +21,16 @@ namespace GUI {
 			return _caption.c_str();
 		}
 
+		void SetCaption(const char* str) override {
+			_caption = str ? str : "";
+		}
+
 		void SetCaption(const std::string& str) {
 			_caption = str;
 		}
 
 		virtual void SetAlpha(BYTE alpha) {
-			_color = (_color & 0x00ffffff) & (alpha << 24);
+			_color = (_color & 0x00ffffff) | (static_cast<DWORD>(alpha) << 24);
 		}
 
 		virtual void SetTextColor(DWORD color) {
