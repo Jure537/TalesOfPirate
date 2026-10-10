@@ -57,6 +57,9 @@ jobs:
           msbuild -version | Tee-Object build-logs/msbuild-version.txt
           exit $LASTEXITCODE
 
+      - name: Preveri zdruzljivost vseh vertex shaderjev
+        run: ./scripts/Test-VertexShaders.ps1
+
       - name: Sestavi igro in streznike (Release x64)
         run: |
           & msbuild sources/talesofpirates.sln /restore /m:2 /p:Configuration=Release /p:Platform=x64 /nologo /verbosity:minimal "/flp:logfile=build-logs/build.log;verbosity=normal"
@@ -100,7 +103,7 @@ jobs:
           Copy-Item Client/system/Game.exe client-hotfix/Game.exe
           $hash = (Get-FileHash client-hotfix/Game.exe -Algorithm SHA256).Hash
           "Game.exe SHA256=$hash`nCommit=${{ github.sha }}" | Set-Content client-hotfix/VERZIJA.txt
-          "Zapri igro. Najprej v prejsnjem testnem paketu uporabi 04-Obnovi.cmd. Shrani kopijo starega Client/system/Game.exe in ga zamenjaj s tem Game.exe. Streznikov in baz ni treba spreminjati. Odpri igro z obicajnim 05-Zazeni-igro.cmd. Preveri Game Settings in like. Ce likov ni, zberi podatke s prejsnjim 03-Zberi-podatke.cmd in poslji ZIP. Ta sestava vsebuje popravek nastavitev besedila, ohranitev graficega stanja po izrisu pisav in omejeno SkinningDiagnostic belezenje." | Set-Content client-hotfix/PREBERI.txt
+          "Zapri igro. Najprej v prejsnjem testnem paketu uporabi 04-Obnovi.cmd. Shrani kopijo starega Client/system/Game.exe in ga zamenjaj s tem Game.exe. Streznikov in baz ni treba spreminjati. Odpri igro z obicajnim 05-Zazeni-igro.cmd. Preveri Game Settings in like. Ce likov ni, zberi podatke s prejsnjim 03-Zberi-podatke.cmd in poslji ZIP. Ta sestava ohranja popravek besedila in prevaja vertex shaderje v vs_2_0, ki je zdruzljiv z izrisom tekstur brez pixel shaderja." | Set-Content client-hotfix/PREBERI.txt
 
       - name: Shrani majhen popravek odjemalca
         uses: actions/upload-artifact@v4

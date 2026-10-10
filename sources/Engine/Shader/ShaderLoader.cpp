@@ -115,13 +115,16 @@ namespace Corsairs::Engine::Render {
 		}
 
 		ID3DXBuffer* err_buf = nullptr;
+		// The engine uses fixed-function pixel processing (no pixel shader).
+		// Hardware vs_3_0 requires a matching ps_3_0; vs_2_0 preserves the
+		// legacy texture-stage, alpha and lighting pipeline.
 		HRESULT hr = D3DXCompileShader(
 			reinterpret_cast<LPCSTR>(data.data()),
 			data.size(),
 			macro_ptr,
 			nullptr, // includes
 			"main",
-			"vs_3_0",
+			"vs_2_0",
 			0, // compile_flag
 			out_code,
 			&err_buf,
