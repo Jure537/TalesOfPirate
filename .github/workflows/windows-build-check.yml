@@ -113,6 +113,22 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Pripravi majhen popravek streznika za queste
+        run: |
+          New-Item -ItemType Directory -Force server-quest-hotfix | Out-Null
+          Copy-Item server/GameServer/GameServer.exe server-quest-hotfix/GameServer.exe
+          $hash = (Get-FileHash server-quest-hotfix/GameServer.exe -Algorithm SHA256).Hash
+          "GameServer.exe SHA256=$hash`nCommit=${{ github.sha }}" | Set-Content server-quest-hotfix/VERZIJA.txt
+          "Zapri igro in izklopi streznike. Shrani kopijo server/GameServer/GameServer.exe in ga zamenjaj s tem GameServer.exe. Ohranjen naj bo namesceni TOP-Quest-Lua-Fix. Nato zazeni streznike in igro. V Alt+Q opusti Blacksmith's Greetings in ga pri Senni ponovno sprejmi, da dobis manjkajoce pismo. Nato obisci Goldieja, predaj pismo in se vrni k Senni. Ne zamenjuj baz ali konfiguracij." | Set-Content server-quest-hotfix/PREBERI.txt
+
+      - name: Shrani majhen popravek streznika
+        uses: actions/upload-artifact@v4
+        with:
+          name: tales-of-pirates-server-quest-hotfix
+          path: server-quest-hotfix/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Pripravi celoten testni paket
         run: ./scripts/package-local-release.ps1
 
