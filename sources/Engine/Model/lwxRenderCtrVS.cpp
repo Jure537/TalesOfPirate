@@ -3,6 +3,9 @@
 #include "stdafx.h"
 #include "lwxRenderCtrlVS.h"
 
+#include <cstring>
+#include <unordered_set>
+
 namespace Corsairs::Engine::Render {
 	lwIRenderCtrlVS* __RenderCtrlVSProcVSVertexBlend_dx8() {
 		return LW_NEW(lwxRenderCtrlVSVertexBlend_dx8);
@@ -147,10 +150,41 @@ namespace Corsairs::Engine::Render {
 
 					DWORD bi;
 					for (bi = 0; bi < bone_num; ++bi) {
-						lwMatrix44Transpose((lwMatrix44*)&__this_buf[bi * 12], &rtmat[bi]);
+						lwMatrix44 transposed;
+						lwMatrix44Transpose(&transposed, &rtmat[bi]);
+						// The shader palette contains three rows per bone, not a
+						// full 4x4 matrix. Writing 16 floats into a 12-float slot
+						// overwrites the next slot and overruns the final one.
+						std::memcpy(&__this_buf[bi * 12], &transposed, 12 * sizeof(float));
 					}
 
 					dev_obj->SetVertexShaderConstantF(VS_CONST_REG_MAT_PALETTE, __this_buf, bone_num * 3);
+
+					// One bounded sample per mesh, including meshes first seen after
+					// login. Keep enough context to diagnose invisible characters.
+					static std::unordered_set<const lwMeshInfo*> loggedMeshes;
+					lwMeshInfo* meshInfo = agent->GetMeshAgent()->GetMesh()->GetMeshInfo();
+					if (meshInfo && loggedMeshes.size() < 64 && loggedMeshes.insert(meshInfo).second) {
+						const float* world = reinterpret_cast<const float*>(&mat);
+						ToLogService("common", LogLevel::Info,
+									 "[SkinningDiagnostic] shader={} decl={} vertices={} fvf=0x{:X} palette={} influence={} ambient=0x{:08X} light=({},{},{}) worldRow3=({},{},{},{}) bone0Row0=({},{},{},{})",
+									 agent->GetVertexShader(), agent->GetVertexDeclaration(),
+									 meshInfo->vertex_num, meshInfo->fvf, bone_num,
+									 meshInfo->bone_infl_factor, rs_amb,
+									 light_dir.x, light_dir.y, light_dir.z,
+									 world[12], world[13], world[14], world[15],
+									 __this_buf[0], __this_buf[1], __this_buf[2], __this_buf[3]);
+						if (meshInfo->vertex_num && meshInfo->vertex_seq && meshInfo->blend_seq) {
+							const auto& vertex = meshInfo->vertex_seq[0];
+							const auto& blend = meshInfo->blend_seq[0];
+							ToLogService("common", LogLevel::Info,
+										 "[SkinningDiagnostic] vertex0=({},{},{}) indices=({},{},{},{}) weights=({},{},{},{})",
+										 vertex.x, vertex.y, vertex.z,
+										 static_cast<unsigned>(blend.index[0]), static_cast<unsigned>(blend.index[1]),
+										 static_cast<unsigned>(blend.index[2]), static_cast<unsigned>(blend.index[3]),
+										 blend.weight[0], blend.weight[1], blend.weight[2], blend.weight[3]);
+						}
+					}
 					break;
 				}
 			}

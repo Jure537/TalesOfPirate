@@ -1,0 +1,150 @@
+name: Sestava in paket Release za Windows
+
+on:
+  push:
+    branches:
+      - codex/windows-build-check
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup-check:
+    name: Preveri pripravo baze in racuna
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Preveri svezi bazi in zavrnitev prepisovanja
+        shell: powershell
+        run: ./scripts/Test-LocalSetup.ps1
+
+  build:
+    needs: setup-check
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Prenesi izvorno kodo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Pripravi .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pripravi Visual Studio 2026
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: '[18.0,19.0)'
+
+      - name: Zabelezi razlicice orodij
+        run: |
+          New-Item -ItemType Directory -Force build-logs | Out-Null
+          dotnet --info | Tee-Object build-logs/dotnet-info.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          msbuild -version | Tee-Object build-logs/msbuild-version.txt
+          exit $LASTEXITCODE
+
+      - name: Preveri zdruzljivost vseh vertex shaderjev
+        run: ./scripts/Test-VertexShaders.ps1
+
+      - name: Sestavi igro in streznike (Release x64)
+        run: |
+          & msbuild sources/talesofpirates.sln /restore /m:2 /p:Configuration=Release /p:Platform=x64 /nologo /verbosity:minimal "/flp:logfile=build-logs/build.log;verbosity=normal"
+          exit $LASTEXITCODE
+
+      - name: Preveri zbirki z igralnimi podatki
+        shell: python
+        run: |
+          import json, sqlite3
+          from pathlib import Path
+          report = {}
+          for name in ("gamedata.sqlite", "render.sqlite"):
+              path = Path("databases") / name
+              with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True) as db:
+                  result = db.execute("PRAGMA integrity_check").fetchall()
+                  if result != [("ok",)]:
+                      raise RuntimeError(f"{name}: {result}")
+                  tables = db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
+                  report[name] = {"integrity": "ok", "tables": [row[0] for row in tables]}
+          Path("build-logs/sqlite-check.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+          print(json.dumps(report, indent=2))
+
+      - name: Zabelezi odvisnosti programov
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vsPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $dumpbin = Get-ChildItem "$vsPath/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $dumpbin) { throw 'Orodje dumpbin ni na voljo.' }
+          foreach ($path in @('Client/system/Game.exe', 'server/GameServer/GameServer.exe')) {
+            $output = & $dumpbin.FullName /DEPENDENTS $path
+            if ($LASTEXITCODE -ne 0) { throw "Pregled odvisnosti ni uspel: $path" }
+            $output | Add-Content build-logs/native-dependencies.txt
+            if ($output -match '(?i)(ucrtbased|vcruntime[0-9_]*d|msvcp[0-9_]*d)\.dll') {
+              throw "Program Release se vedno zahteva knjiznico Debug: $path"
+            }
+          }
+
+      - name: Pripravi majhen popravek odjemalca
+        run: |
+          New-Item -ItemType Directory -Force client-hotfix | Out-Null
+          Copy-Item Client/system/Game.exe client-hotfix/Game.exe
+          $hash = (Get-FileHash client-hotfix/Game.exe -Algorithm SHA256).Hash
+          "Game.exe SHA256=$hash`nCommit=${{ github.sha }}" | Set-Content client-hotfix/VERZIJA.txt
+          "Zapri igro. Najprej v prejsnjem testnem paketu uporabi 04-Obnovi.cmd. Shrani kopijo starega Client/system/Game.exe in ga zamenjaj s tem Game.exe. Streznikov in baz ni treba spreminjati. Odpri igro z obicajnim 05-Zazeni-igro.cmd. Preveri Game Settings in like. Ce likov ni, zberi podatke s prejsnjim 03-Zberi-podatke.cmd in poslji ZIP. Ta sestava ohranja popravek besedila in prevaja vertex shaderje v vs_2_0, ki je zdruzljiv z izrisom tekstur brez pixel shaderja." | Set-Content client-hotfix/PREBERI.txt
+
+      - name: Shrani majhen popravek odjemalca
+        uses: actions/upload-artifact@v4
+        with:
+          name: tales-of-pirates-client-hotfix
+          path: client-hotfix/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Pripravi majhen popravek streznika za queste
+        run: |
+          New-Item -ItemType Directory -Force server-quest-hotfix | Out-Null
+          Copy-Item server/GameServer/GameServer.exe server-quest-hotfix/GameServer.exe
+          $hash = (Get-FileHash server-quest-hotfix/GameServer.exe -Algorithm SHA256).Hash
+          "GameServer.exe SHA256=$hash`nCommit=${{ github.sha }}" | Set-Content server-quest-hotfix/VERZIJA.txt
+          "Zapri igro in izklopi streznike. Shrani kopijo server/GameServer/GameServer.exe in ga zamenjaj s tem GameServer.exe. Ohranjen naj bo namesceni TOP-Quest-Lua-Fix. Nato zazeni streznike in igro. V Alt+Q opusti Blacksmith's Greetings in ga pri Senni ponovno sprejmi, da dobis manjkajoce pismo. Nato obisci Goldieja, predaj pismo in se vrni k Senni. Ne zamenjuj baz ali konfiguracij." | Set-Content server-quest-hotfix/PREBERI.txt
+
+      - name: Shrani majhen popravek streznika
+        uses: actions/upload-artifact@v4
+        with:
+          name: tales-of-pirates-server-quest-hotfix
+          path: server-quest-hotfix/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Pripravi celoten testni paket
+        run: ./scripts/package-local-release.ps1
+
+      - name: Shrani paket Release za prenos
+        uses: actions/upload-artifact@v4
+        with:
+          name: tales-of-pirates-release-x64
+          path: release-package/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Shrani dnevnik sestavljanja
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-logs
+          path: build-logs/
+          if-no-files-found: warn
+          retention-days: 7
