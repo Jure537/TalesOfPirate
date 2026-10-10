@@ -1,0 +1,33 @@
+name: Skinning shader probe
+on:
+  push:
+    branches: [codex/skinning-diagnostics]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shader:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Client/shader/dx9
+      - name: Compile and disassemble skinning variants
+        shell: pwsh
+        run: |
+          $fxc = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/fxc.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $fxc) { throw 'fxc missing' }
+          New-Item -ItemType Directory -Force shader-probe | Out-Null
+          foreach ($weights in 0..3) {
+            & $fxc.FullName /nologo /T vs_3_0 /E main /D "NUM_EXPLICIT_WEIGHTS=$weights" /Fo "shader-probe/skin$weights.bin" /Fc "shader-probe/skin$weights.asm" Client/shader/dx9/static_skin.hlsl
+            if ($LASTEXITCODE -ne 0) { throw "Shader $weights failed" }
+            Get-Content "shader-probe/skin$weights.asm"
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skinning-shader-probe
+          path: shader-probe/
+          retention-days: 7
