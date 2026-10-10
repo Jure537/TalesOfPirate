@@ -22,7 +22,7 @@ jobs:
           if (-not $fxc) { throw 'fxc missing' }
           New-Item -ItemType Directory -Force shader-probe | Out-Null
           foreach ($weights in 0..3) {
-            & $fxc.FullName /nologo /T vs_3_0 /E main /D "NUM_EXPLICIT_WEIGHTS=$weights" /Fo "shader-probe/skin$weights.bin" /Fc "shader-probe/skin$weights.asm" Client/shader/dx9/static_skin.hlsl
+            & $fxc.FullName /nologo /T vs_2_0 /E main /D "NUM_EXPLICIT_WEIGHTS=$weights" /Fo "shader-probe/skin$weights.bin" /Fc "shader-probe/skin$weights.asm" Client/shader/dx9/static_skin.hlsl
             if ($LASTEXITCODE -ne 0) { throw "Shader $weights failed" }
             Get-Content "shader-probe/skin$weights.asm"
           }
