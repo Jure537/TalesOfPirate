@@ -119,7 +119,7 @@ jobs:
           Copy-Item server/GameServer/GameServer.exe server-quest-hotfix/GameServer.exe
           $hash = (Get-FileHash server-quest-hotfix/GameServer.exe -Algorithm SHA256).Hash
           "GameServer.exe SHA256=$hash`nCommit=${{ github.sha }}" | Set-Content server-quest-hotfix/VERZIJA.txt
-          "Zapri igro in izklopi streznike. Shrani kopijo server/GameServer/GameServer.exe in ga zamenjaj s tem GameServer.exe. Ohranjen naj bo namesceni TOP-Quest-Lua-Fix. Nato zazeni streznike in igro. V Alt+Q opusti Blacksmith's Greetings in ga pri Senni ponovno sprejmi, da dobis manjkajoce pismo. Nato obisci Goldieja, predaj pismo in se vrni k Senni. Ne zamenjuj baz ali konfiguracij." | Set-Content server-quest-hotfix/PREBERI.txt
+          "Zapri igro in izklopi streznike. Shrani kopijo server/GameServer/GameServer.exe in ga zamenjaj s tem GameServer.exe. Ohranjen naj bo namesceni TOP-Quest-Lua-Fix. Nato zazeni streznike in igro. Ce imas pismo in rumen klicaj nad Goldiejem, klikni Complete in se nato vrni k Senni. Questa ni treba opustiti. Ce pisma se nimas, v Alt+Q opusti Blacksmith's Greetings in ga pri Senni ponovno sprejmi. Ne zamenjuj baz ali konfiguracij." | Set-Content server-quest-hotfix/PREBERI.txt
 
       - name: Shrani majhen popravek streznika
         uses: actions/upload-artifact@v4
