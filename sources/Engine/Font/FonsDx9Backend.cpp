@@ -153,6 +153,17 @@ namespace fons {
 				out[i].V = tcoords[i * 2 + 1];
 			}
 
+			// Font drawing bypasses DeviceObject's state cache. Restore the actual
+			// device state, including stream 0 cleared by DrawPrimitiveUP, so the
+			// next scene draw still agrees with the cache.
+			IDirect3DStateBlock9* savedState = nullptr;
+			if (HRESULT hr = dev->CreateStateBlock(D3DSBT_ALL, &savedState); FAILED(hr)) {
+				ToLogService("errors", LogLevel::Error,
+							 "[FontRender] CreateStateBlock failed: hr=0x{:08X}",
+							 static_cast<std::uint32_t>(hr));
+				return;
+			}
+
 			dev->SetVertexShader(nullptr);
 			dev->SetPixelShader(nullptr);
 			dev->SetFVF(kFontFVF);
@@ -188,6 +199,13 @@ namespace fons {
 				static_cast<UINT>(nverts / 3),
 				out.data(),
 				sizeof(FontVertex));
+
+			if (HRESULT hr = savedState->Apply(); FAILED(hr)) {
+				ToLogService("errors", LogLevel::Error,
+							 "[FontRender] state restore failed: hr=0x{:08X}",
+							 static_cast<std::uint32_t>(hr));
+			}
+			savedState->Release();
 		}
 
 		void Dx9RenderDelete(void* uptr) {

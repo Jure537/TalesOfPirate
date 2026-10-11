@@ -1,4 +1,59 @@
-﻿print("-- [Loading] Mission SDK")
+-- TOP-Lua-MultiReturn-Compatibility-v1
+-- LuaBridge exposes C++ tuples as tables; legacy game scripts expect multiple returns.
+-- Keep original bindings so SDK reloads do not stack wrappers.
+TOP_LegacyTupleBindings = TOP_LegacyTupleBindings or {}
+do
+    local unpackValues = table.unpack or unpack
+    local returnCounts = {
+        CreateEventEntity = 2,
+        FindNpc = 3,
+        GetBoatID = 2,
+        GetCatAndPf = 3,
+        GetCategory = 2,
+        GetCharMission = 2,
+        GetCurSubmap = 2,
+        GetEudemon = 2,
+        GetMisScriptID = 2,
+        GetMissionInfo = 3,
+        GetMissionPage = 4,
+        GetMissionState = 2,
+        GetMissionTempInfo = 4,
+        GetNeedItemCount = 2,
+        GetNextMission = 4,
+        GetNumItem = 2,
+        GetNumMission = 2,
+        GetProfession = 2,
+        GetRandMission = 8,
+        GetRandMissionCount = 2,
+        GetRandMissionData = 7,
+        GetRandMissionNum = 2,
+        GetSaleGoodsItem = 2,
+        GetScriptID = 2,
+        GetTradeItemData = 3,
+        MakeItem = 2,
+        PackBag = 2,
+        SafeBuy = 2,
+        SafeBuyGoods = 2,
+        SafeSale = 3,
+        SafeSaleGoods = 3,
+    }
+    for name, count in pairs(returnCounts) do
+        if type(_G[name]) == "function" then
+            local original = TOP_LegacyTupleBindings[name] or _G[name]
+            TOP_LegacyTupleBindings[name] = original
+            _G[name] = function(...)
+                local values = {original(...)}
+                if type(values[1]) == "table" and values[2] == nil then
+                    return unpackValues(values[1], 1, count)
+                end
+                return unpackValues(values, 1, count)
+            end
+        end
+    end
+end
+-- End TOP-Lua-MultiReturn-Compatibility-v1
+
+print("-- [Loading] Mission SDK")
 
 LUA_TRUE = 1
 LUA_FALSE = 0

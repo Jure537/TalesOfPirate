@@ -10,7 +10,7 @@ namespace Corsairs::Engine::Render {
 
 // Единая точка загрузки и компиляции шейдеров MindPower3D.
 //   • LoadEffect          — .fx через D3DXCreateEffect (in-memory, после ReadWholeFile).
-//   • CompileVertexShader — vertex-shader HLSL через D3DXCompileShader (vs_3_0).
+//   • CompileVertexShader — vertex-shader HLSL через D3DXCompileShader (vs_2_0).
 //
 // Stateless, все методы — static. Ошибки логируются в "errors" с
 // префиксом file:line / err-buffer'ом D3DX. Возвращают LW_RESULT

@@ -457,7 +457,7 @@ int GetTicketIssue(SItemGrid* pItem)
 // GetTicketItemno uses pushstring with variable logic -- keep as raw
 int GetTicketItemno_raw(lua_State* L)
 {
-	BOOL bValid = (lua_gettop(L) == 2 && lua_islightuserdata(L, 1) && lua_isnumber(L, 2));
+	BOOL bValid = (lua_gettop(L) == 2 && lua_isuserdata(L, 1) && lua_isnumber(L, 2));
 	if (!bValid)
 	{
 		E_LUAPARAM;
@@ -540,7 +540,7 @@ std::tuple<int, int> MakeItem(CCharacter* pChar, int sItemID, int sCount, int by
 // GiveItem has variable args (5-7) -- keep as raw
 int GiveItem_raw(lua_State* L)
 {
-	BOOL bValid = ((lua_gettop(L) >= 5 && lua_gettop(L) <= 7) && lua_islightuserdata(L, 1) &&
+	BOOL bValid = ((lua_gettop(L) >= 5 && lua_gettop(L) <= 7) && lua_isuserdata(L, 1) &&
 		lua_isnumber(L, 3) && lua_isnumber(L, 4) && lua_isnumber(L, 5));
 	if (!bValid)
 	{
@@ -598,7 +598,7 @@ int GiveItemX(CCharacter* pChar, CTalkNpc* pTalk, int sItemID, int sCount, int b
 // GiveItemY has variable args (5-7) and returns lightuserdata -- keep as raw
 int GiveItemY_raw(lua_State* L)
 {
-	BOOL bValid = ((lua_gettop(L) >= 5 && lua_gettop(L) <= 7) && lua_islightuserdata(L, 1) &&
+	BOOL bValid = ((lua_gettop(L) >= 5 && lua_gettop(L) <= 7) && lua_isuserdata(L, 1) &&
 		lua_isnumber(L, 3) && lua_isnumber(L, 4) && lua_isnumber(L, 5));
 	if (!bValid)
 	{
@@ -2351,7 +2351,7 @@ void ForcePlayerSave(CCharacter* pChar)
 
 // String2Item has variable args (2 or 3) with different behavior -- keep as raw
 int String2Item_raw(lua_State* L) {
-	if (!((lua_gettop(L) == 2 || (lua_gettop(L) == 3 && lua_isnumber(L, 3))) && lua_islightuserdata(L, 1) && lua_isstring(L, 2))) {
+	if (!((lua_gettop(L) == 2 || (lua_gettop(L) == 3 && lua_isnumber(L, 3))) && lua_isuserdata(L, 1) && lua_isstring(L, 2))) {
 		return 0;
 	}
 	auto pCharResult = luabridge::Stack<CCharacter*>::get(L, 1);

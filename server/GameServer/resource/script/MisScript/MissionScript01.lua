@@ -1,4 +1,4 @@
-﻿print("--------------------------------------------------")
+print("--------------------------------------------------")
 print("[**] Mission Files [**]")
 print("-- [Loading] Mission Script [01]")
 
@@ -441,7 +441,12 @@ RobinMission022()
 function RobinMission024()
     DefineMission(701, "Welcome", 1, COMPLETE_SHOW)
 
-    MisBeginCondition(AlwaysFailure)
+    -- Allow characters without the legacy starter mission to enter the quest chain.
+    MisBeginTalk("<t>Welcome to Argent City! Speak with me again to complete your introduction.")
+    MisBeginCondition(NoRecord, 1)
+    MisBeginCondition(NoMission, 1)
+    MisBeginAction(AddMission, 1)
+    MisNeed(MIS_NEED_DESP, "Speak with Newbie Guide - Senna at (2223,2785).")
 
     MisResultTalk("<t> Welcome!<n><t>Come to me if you have any questions regarding Classes and Attribute related issue.<n><t>Next I am going to tell you where to buy good weapons in <pArgent City>.<n><t>Since you have leveled up,  you can press the yellow button below your portrait (Alt + A) to open your character page to distribute your stats. Every time you level up, you will received more points for your own allocation. <n><t>You have 5 basic attributes that can be added: Strength which affects your melee attack power; Agility which increases your Attack Speed and Dodge rate; Accuracy which increases your Hit Rate and range attack power; Spirit which increases your Max SP and magical damage; Constitution which increases your defense and Max HP.")
     MisHelpTalk("<t>Hi! I am the only Newbie Guide in this city. Look for me when you feel the need to understand the basic of this game.<n><t>It will be harsh for you to survive without any help.")

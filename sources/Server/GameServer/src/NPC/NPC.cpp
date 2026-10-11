@@ -1,4 +1,4 @@
-﻿// npc.cpp Created by knight-gongjian 2004.11.19.
+// npc.cpp Created by knight-gongjian 2004.11.19.
 //---------------------------------------------------------
 #include "Core/stdafx.h"
 namespace Corsairs::Common::NPC {}
@@ -109,7 +109,7 @@ namespace Corsairs::Common::Mission
 			return FALSE;
 		}
 
-		luabridge::push( g_pLuaState, static_cast<Corsairs::Common::Mission::CNpc*>(this) );
+		luabridge::push( g_pLuaState, this );
 		lua_pushstring( g_pLuaState, szName );
 
 		int nStatus = lua_pcall( g_pLuaState, 2, 0, 0 );
@@ -156,7 +156,7 @@ namespace Corsairs::Common::Mission
 			return FALSE;
 		}
 
-		luabridge::push( g_pLuaState, static_cast<Corsairs::Common::Mission::CNpc*>(this) );
+		luabridge::push( g_pLuaState, this );
 		lua_pushstring( g_pLuaState, szName );
 
 		nStatus = lua_pcall( g_pLuaState, 2, 0, 0 );
@@ -287,7 +287,7 @@ namespace Corsairs::Common::Mission
 		luabridge::LuaRef action = BuildNpcActionTable(g_pLuaState, packet);
 
 		luabridge::push( g_pLuaState, &character );
-		luabridge::push( g_pLuaState, static_cast<Corsairs::Common::Mission::CNpc*>(this) );
+		luabridge::push( g_pLuaState, this );
 		action.push(g_pLuaState);
 		lua_pushnumber( g_pLuaState, m_sScriptID );
 
@@ -438,7 +438,7 @@ namespace Corsairs::Common::Mission
 					return;
 				}
 
-				luabridge::push( g_pLuaState, static_cast<Corsairs::Common::Mission::CNpc*>(this) );
+				luabridge::push( g_pLuaState, this );
 				lua_pushnumber( g_pLuaState, m_Trigger[i].wTID );
 				lua_pushnumber( g_pLuaState, m_Trigger[i].wParam1 );
 				lua_pushnumber( g_pLuaState, m_Trigger[i].wParam2 );
